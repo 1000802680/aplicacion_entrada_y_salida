@@ -17,5 +17,5 @@
  */
 
 window.APP_CONFIG = {
-  APPS_SCRIPT_URL: 'AQUI PEGA LA URL QUE TE DA DESPLEGAR DE GOOGLE APPS SCRIPT'
+  APPS_SCRIPT_URL: https://script.google.com/macros/s/AKfycbxdfadm8o8PVWB2uHyz7GUehtVBe0e08ggy1NUsgcVJR5MLWP19zZnl0FWD_gin20Jn7g/exec
 };
