@@ -1,9 +1,4 @@
 <!DOCTYPE html>
-<link rel="stylesheet" href="styles.css">
-... al final:
-<script src="CONFIG.js"></script>
-<script src="app.js"></script>
-
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -126,6 +121,16 @@
       <b style="color:var(--slate-700)">Credenciales iniciales de prueba</b><br>
       Admin · <b>Cédula 1234567890</b> / <b>PIN 1234</b><br>
       Trabajador · <b>Cédula 1001001001</b> / <b>PIN 2024</b>
+      <div style="margin-top:14px">
+        <button type="button" class="btn-red-outline" style="width:100%;padding:12px;font-weight:700;font-size:14.5px" onclick="diagnosticarBackend()">
+          &#129658; Diagnosticar conexión con Google Apps Script
+        </button>
+      </div>
+      <div style="margin-top:10px;font-size:11.5px;color:#64748b;text-align:left;line-height:1.6">
+        <b style="color:#ef4444">⚠️ Si no puedes iniciar sesión:</b> pulsa el botón rojo de arriba.
+        En 30 segundos te dirá EXACTAMENTE qué está fallando (la URL, permisos del despliegue, CORS, etc.) y
+        te da los pasos exactos para arreglarlo.
+      </div>
     </div>
     <div class="login-footer hidden" id="loginFooterReg" style="font-size:11.5px">
       <b style="color:var(--slate-700)">¿Ya tienes cuenta?</b><br>
@@ -543,3 +548,4 @@
   <script src="app.js"></script>
 </body>
 </html>
+
