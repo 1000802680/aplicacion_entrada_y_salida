@@ -19,7 +19,7 @@ const GS = {
     const cfg = (typeof window !== 'undefined' && window.APP_CONFIG) ? window.APP_CONFIG : {};
     const urlRaw = String(cfg.APPS_SCRIPT_URL || '').trim();
     const urlLow = urlRaw.toLowerCase();
-    const urlOk  = (urlRaw.length > 20) && (!urlLow.includes('aqui pega')) && (!urlLow.includes('tu_url')) && (!urlLow.includes('replace'));
+    const urlOk  = (urlRaw.length > 20) && (!urlLow.includes('aqui pega')) && (!urlLow.includes('tu_url')) && (!urlLow.includes('replace')) && (!urlLow.includes('xxxx'));
 
     if (urlOk) {
       return new Promise((resolve, reject)=>{
@@ -32,17 +32,35 @@ const GS = {
               body: payload,
               mode: 'cors'
             });
-            if (!resp.ok) { throw new Error('Apps Script HTTP '+resp.status+'. Asegúrate de haber desplegado el Code.gs como "Acceso: Cualquier persona" (Anyone).'); }
+            if (!resp.ok) {
+              if (resp.status === 401 || resp.status === 403) {
+                throw new Error('HTTP '+resp.status+': No tienes permiso. EN GOOGLE APPS SCRIPT → Desplegar → Gestionar → Acceso → elige "Cualquier persona (Anyone)" y Actualiza implementación. Luego pega la URL NUEVA en CONFIG.js.');
+              }
+              if (resp.status >= 500) {
+                throw new Error('HTTP '+resp.status+': Apps Script se cayó. Abre el URL /exec en pestaña nueva, autoriza permisos si te pide, y vuelve. También revisa Registros de ejecución en Apps Script.');
+              }
+              throw new Error('Apps Script HTTP '+resp.status+'. Asegúrate de haber desplegado el Code.gs como "Acceso: Cualquier persona" (Anyone).');
+            }
             const json = await resp.json();
             if (!json.ok) { throw new Error(json.error || ('Error en '+name)); }
             resolve(json.data);
           } catch(err){
-            const errStr = String(err);
-            if (attempt < 1 && (errStr.includes('HTTP') || errStr.includes('Failed to fetch') || errStr.includes('NetworkError'))) {
-              setTimeout(()=> doFetch(attempt+1), 1400);
-            } else {
-              reject(new Error(err.message || String(err)));
+            const errStr = String(err && err.message ? err.message : err);
+            // ---- DIAGNOSTICO ULTRA-ESPECIFICO PARA ERRORES COMUNES ----
+            const esCors = (errStr.includes('Failed to fetch') || errStr.includes('NetworkError') || errStr.includes('CORS') || errStr.includes('Blocked by CORS'));
+            const urlNoBien = !/script\.google\.com.*\/exec$/i.test(urlRaw.trim());
+            if (attempt < 1 && (esCors || errStr.includes('HTTP') || errStr.includes('Failed to fetch'))) {
+              setTimeout(()=> doFetch(attempt+1), 1500);
+              return;
             }
+            let msg = err.message || errStr;
+            if (esCors || urlNoBien) {
+              msg =  '🚨 NO HAY CONEXIÓN CON GOOGLE APPS SCRIPT. Haz el DIAGNÓSTICO (botón abajo del login).';
+              if (urlNoBien) msg += ' 👉 CONFIG.js tiene una URL INVÁLIDA: debe terminar en script.google.com/.../exec';
+              else msg += ' 👉 Causa más probable: el despliegue NO tiene "Acceso = Cualquier persona (Anyone)".';
+              msg += '\n\n📝 Pasos: (1) Apps Script → Desplegar → Gestionar implementaciones → Editar ✏️ → Acceso: Cualquier persona (Anyone) → ACTUALIZA DESPLIEGUE. (2) Copia la URL NUEVA. (3) Abre CONFIG.js en GitHub y pégala. (4) Espera 1 minuto y vuelve a refrescar.';
+            }
+            reject(new Error(msg));
           }
         };
         doFetch(0);
@@ -171,7 +189,7 @@ async function doRegistrar(){
     }, 350);
   } catch(e){
     err.style.display='block';
-    err.textContent = '❌ '+e.message;
+    err.innerHTML = '❌ '+String(e.message||e).replace(/\n/g,'<br>');
   } finally {
     loading(false);
     // restaurar botón
@@ -186,7 +204,7 @@ async function doLogin(){
   const ced = $('loginCedula').value.trim();
   const pin = $('loginPin').value.trim();
   const err = $('loginError');
-  err.style.display='none'; err.textContent='';
+  err.style.display='none'; err.innerHTML='';
   if (!ced || !pin){ err.style.display='block'; err.textContent='⚠️ Ingrese cédula y PIN.'; return; }
   loading(true, 'Iniciando sesión...');
   try {
@@ -196,7 +214,73 @@ async function doLogin(){
     enterApp();
   } catch (e){
     err.style.display='block';
-    err.textContent = '❌ '+e.message;
+    err.innerHTML = '❌ '+String(e.message||e).replace(/\n/g,'<br>');
+  } finally { loading(false); }
+}
+
+async function diagnosticarBackend(){
+  const err = $('loginError');
+  loading(true, 'Diagnosticando conexión con Google Apps Script...');
+  const lines = [];
+  try {
+    const cfg = (window.APP_CONFIG || {});
+    const url = String(cfg.APPS_SCRIPT_URL || '').trim();
+    lines.push('🩺 <b>PASO 1: ¿CONFIG.js existe y tiene URL?</b>');
+    if (!url) { lines.push('   ❌ FALLO: CONFIG.js está vacío. Abre CONFIG.js en GitHub y pega tu URL /exec.'); throw new Error(lines.join('<br>')); }
+    lines.push('   ✅ OK: Detectada URL: <code style="word-break:break-all;background:#f8fafc;padding:2px 6px;border-radius:6px">'+esc(url)+'</code>');
+
+    lines.push('🩺 <b>PASO 2: ¿URL termina en script.google.com/.../exec?</b>');
+    const okFormat = /^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/i.test(url);
+    if (!okFormat) {
+      lines.push('   ❌ FALLO: El formato NO es script.google.com/macros/s/.../exec.');
+      lines.push('   ⚠️  Posiblemente Chrome TRADUJO la URL: "guion.Google.com" y "/ejecutivo" son FALSOS.');
+      lines.push('   📝 Solución: En Apps Script → Desplegar → Gestionar implementaciones → COPIAR la URL de ahí y PEGAR de nuevo en CONFIG.js.');
+      throw new Error(lines.join('<br>'));
+    }
+    lines.push('   ✅ OK: El formato de la URL es correcto.');
+
+    lines.push('🩺 <b>PASO 3: Prueba GET /?action=ping (abrir backend en nueva pestaña)</b>');
+    lines.push('   ℹ️  Abriendo backend... Si te pide autorizar OAuth, hazlo, luego vuelve y pulsa Iniciar Sesión.');
+    lines.push('   ℹ️  Si en la pestaña nueva te sale: "✅ Backend OK" → tu backend funciona.');
+    lines.push('   ℹ️  Si te sale: "El acceso no está autorizado" → EL DESPLIEGUE NO TIENE ACCESO = CUALQUIER PERSONA.');
+    window.open(url + (url.includes('?') ? '&' : '?') + 'action=ping', '_blank', 'noopener,noreferrer');
+
+    lines.push('🩺 <b>PASO 4: Prueba FETCH REAL (CORS) desde GitHub Pages</b>');
+    try {
+      const r = await fetch(url + (url.includes('?')?'&':'?') + 'action=ping', { method:'GET', mode:'cors' });
+      lines.push('   ✅ OK: CORS devolvió HTTP '+r.status);
+      const txt = await r.text().catch(()=>'');
+      if (txt && txt.includes('Backend OK')) lines.push('   ✅ Backend respondió: "Backend OK". Todo 100% conectado.');
+      if (txt && txt.includes('autorizado')) lines.push('   ❌ ¡FALLO DE PERMISOS! El backend respondió: "No autorizado" → necesitas desplegar con Acceso = Cualquier persona (Anyone).');
+    } catch (eFetch){
+      const es = String(eFetch.message || eFetch);
+      lines.push('   ❌ FALLO: '+esc(es));
+      if (es.includes('Failed to fetch') || es.includes('CORS') || es.includes('Blocked')) {
+        lines.push('   🎯 <b>CAUSA SEGURA (el 99% de los casos):</b>');
+        lines.push('   Tu despliegue de Apps Script NO tiene "Acceso: Cualquier persona (Anyone)".');
+        lines.push('   📝 Pasos para ARREGLARLO YA (2 minutos):');
+        lines.push('   1️⃣ Abre Google Apps Script → tu proyecto.');
+        lines.push('   2️⃣ Clic en <b>Desplegar → Gestionar implementaciones</b>.');
+        lines.push('   3️⃣ Busca la versión ACTIVA (arriba de todo), pulsa el ✏️ Editar (lápiz).');
+        lines.push('   4️⃣ Despliega <b>"Quien tiene acceso"</b> → selecciona la ÚLTIMA opción:');
+        lines.push('      ✅ <b>Cualquier persona (Anyone)</b> ⚠️ NO elijas "Cualquier persona con cuenta Google" (eso sigue pidiendo login).');
+        lines.push('   5️⃣ Clic en <b>Actualizar</b> (o Desplegar, si es nueva versión). Copia la URL NUEVA que termina en /exec.');
+        lines.push('   6️⃣ Abre CONFIG.js en GitHub → ✏️ Edita → PEGA ESA URL NUEVA. Commit changes.');
+        lines.push('   7️⃣ Espera 1 minuto a que Actions ponga ✅ VERDE. Refresca esta página con Ctrl+Shift+R.');
+        lines.push('   8️⃣ Vuelve a pulsar "Iniciar Sesión" con Admin: 1234567890 / 1234');
+      }
+      throw new Error(lines.join('<br>'));
+    }
+
+    lines.push('🎉 <b>¡TODO PARECE FUNCIONAR!</b> Si aún así no puedes iniciar sesión:');
+    lines.push('   - Usa credenciales 👑 Admin: <b>1234567890</b> · PIN <b>1234</b>');
+    lines.push('   - Abre Registros de ejecución en Apps Script para ver si hay error en backend.');
+
+    err.style.display = 'block';
+    err.innerHTML = lines.join('<br>');
+  } catch (e){
+    err.style.display = 'block';
+    err.innerHTML = String(e.message||e).replace(/\n/g,'<br>');
   } finally { loading(false); }
 }
 
