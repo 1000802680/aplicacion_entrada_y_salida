@@ -245,16 +245,16 @@ async function diagnosticarBackend(){
     lines.push('   ℹ️  Si te sale: "El acceso no está autorizado" → EL DESPLIEGUE NO TIENE ACCESO = CUALQUIER PERSONA.');
     window.open(url + (url.includes('?') ? '&' : '?') + 'action=ping', '_blank', 'noopener,noreferrer');
 
-    lines.push('🩺 <b>PASO 4: Prueba FETCH REAL (CORS) desde GitHub Pages</b>');
+    lines.push('🩺 <b>PASO 4: Prueba FETCH GET /?action=ping (solo lectura)</b>');
     try {
       const r = await fetch(url + (url.includes('?')?'&':'?') + 'action=ping', { method:'GET', mode:'cors' });
-      lines.push('   ✅ OK: CORS devolvió HTTP '+r.status);
+      lines.push('   ✅ OK: GET CORS devolvió HTTP '+r.status);
       const txt = await r.text().catch(()=>'');
-      if (txt && txt.includes('Backend OK')) lines.push('   ✅ Backend respondió: "Backend OK". Todo 100% conectado.');
+      if (txt && txt.includes('Backend OK')) lines.push('   ✅ Backend respondió: "Backend OK". Conexión HTTPS funciona.');
       if (txt && txt.includes('autorizado')) lines.push('   ❌ ¡FALLO DE PERMISOS! El backend respondió: "No autorizado" → necesitas desplegar con Acceso = Cualquier persona (Anyone).');
     } catch (eFetch){
       const es = String(eFetch.message || eFetch);
-      lines.push('   ❌ FALLO: '+esc(es));
+      lines.push('   ❌ FALLO GET: '+esc(es));
       if (es.includes('Failed to fetch') || es.includes('CORS') || es.includes('Blocked')) {
         lines.push('   🎯 <b>CAUSA SEGURA (el 99% de los casos):</b>');
         lines.push('   Tu despliegue de Apps Script NO tiene "Acceso: Cualquier persona (Anyone)".');
@@ -272,9 +272,53 @@ async function diagnosticarBackend(){
       throw new Error(lines.join('<br>'));
     }
 
-    lines.push('🎉 <b>¡TODO PARECE FUNCIONAR!</b> Si aún así no puedes iniciar sesión:');
+    lines.push('🩺 <b>PASO 5: Prueba FETCH POST REAL (login acción — EXACTAMENTE lo que usa el botón Iniciar Sesión)</b>');
+    try {
+      const postBody = JSON.stringify({ action:'login', args:['1234567890','1234'] }); // credenciales admin
+      const r2 = await fetch(url, {
+        method:'POST', mode:'cors',
+        headers: { 'Content-Type':'application/json', 'Accept':'application/json' },
+        body: postBody
+      });
+      lines.push('   ✅ OK: POST CORS devolvió HTTP '+r2.status);
+      if (r2.ok) {
+        try {
+          const j = await r2.json();
+          if (j.ok) {
+            lines.push('   🎉 <b>¡POST FUNCIONA! Login Admin 1234567890/1234 CREDENCIALES VÁLIDAS — CONEXIÓN 100% ESTABLECIDA.</b>');
+            lines.push('   Ya puedes pulsar Iniciar Sesión con normalidad. Si aún no funciona, es caché: cierra la pestaña y abre de nuevo.');
+          } else {
+            lines.push('   ℹ️  Backend respondió con error esperado: '+esc(j.error||'sin detalle'));
+            lines.push('   CORS DE POST FUNCIONA, pero la credencial no coincide. Asegúrate de usar:');
+            lines.push('   Admin → Cédula: <b>1234567890</b> · PIN: <b>1234</b>');
+            lines.push('   O Trabajador → Cédula <b>1001001001</b> · PIN <b>2024</b>');
+            lines.push('   (O crea una cuenta nueva desde Regístrame).');
+          }
+        } catch(_){
+          const t2 = await r2.text().catch(()=>'');
+          lines.push('   ⚠️  Respuesta no-JSON (primer despliegue / OAuth pendiente?): muestra un extracto: '+esc(t2.slice(0,180)));
+          if (t2 && (t2.includes('autorizado') || t2.includes('Google Account required') || t2.includes('Acceso denegado'))) {
+            lines.push('   ❌ <b>Causa: el despliegue NO tiene permiso Anyone. Repite el Paso 4 del diagnóstico y marca literalmente "Cualquier persona" (Anyone), NO la opción "con cuenta Google".</b>');
+          }
+        }
+      } else if (r2.status === 401 || r2.status === 403) {
+        lines.push('   ❌ HTTP '+r2.status+' → el despliegue NO tiene la opción "Cualquier persona (Anyone)" marcada.');
+      }
+    } catch (ePost){
+      const es = String(ePost.message || ePost);
+      lines.push('   ❌ FALLO POST (acción login): '+esc(es));
+      lines.push('   🎯 <b>Esto es lo que realmente falla al pulsar "Iniciar Sesión". Solución:</b>');
+      lines.push('   🚨 <b>La opción "Quien tiene acceso" en Apps Script → Gestionar implementaciones → tiene que ser literalmente "Cualquier persona" (Anyone).</b>');
+      lines.push('   ❌ NO vale "Cualquier persona con cuenta Google" → eso pide OAuth y rompe CORS.');
+      lines.push('   👉 <b>Repite los pasos 1-8 del PASO 4 (arriba en este mismo diagnóstico) y asegúrate de elegir la ÚLTIMA opción del desplegable "Quien tiene acceso".</b>');
+      lines.push('   📌 Otra causa común: has pegado la URL que corresponde a una implementación ANTERIOR. Copia LA URL NUEVA DESPUÉS de hacer clic en "Actualizar implementación" y vuelve a pegarla en CONFIG.js, sube commit, espera Actions, vuelve a pulsar Diagnosticar conexión.');
+      throw new Error(lines.join('<br>'));
+    }
+
+    lines.push('🎉 <b>¡DIAGNÓSTICO COMPLETO! Conexión Backend ↔ GitHub Pages: 100% OK.</b>');
     lines.push('   - Usa credenciales 👑 Admin: <b>1234567890</b> · PIN <b>1234</b>');
-    lines.push('   - Abre Registros de ejecución en Apps Script para ver si hay error en backend.');
+    lines.push('   - Si el botón Iniciar Sesión sigue sin responder: cierra TODAS las pestañas del dominio github.io y abre de nuevo (limpia caché de credenciales).');
+    lines.push('   - Abre "Registro de ejecución" en Apps Script para ver si hay un error en tu servidor tras el POST (ej: SPREADSHEET_ID inválido).');
 
     err.style.display = 'block';
     err.innerHTML = lines.join('<br>');
