@@ -1686,8 +1686,63 @@ $('btnLogout').addEventListener('click', ()=>{
   toast('Sesión cerrada correctamente','info');
 });
 
-// Auto-restore session on load
-window.addEventListener('load', ()=>{
+// Auto-restore session on load + PRUEBA POST AUTOMÁTICA DE CONEXIÓN (solo en login)
+window.addEventListener('load', async ()=>{
   const s = getSession();
-  if (s){ currentUser = s; enterApp(); }
+  if (s){ currentUser = s; enterApp(); return; }
+
+  // ----- NO HAY SESIÓN: estamos en LOGIN. Correr prueba POST automáticamente -----
+  try {
+    const cfg = (window.APP_CONFIG || {});
+    const url = String(cfg.APPS_SCRIPT_URL || '').trim();
+    const errDiv = $('loginError');
+    if (!url) { return; } // el banner de index.html ya le avisó que no tiene URL
+    if (!/script\.google\.com.*\/exec$/i.test(url)) { return; } // banner también avisó
+
+    // Hacemos un POST de PRUEBA (misma petición que hará doLogin pero sin mostrar errores
+    // al usuario, solo si FALLA mostramos el diagnóstico paso a paso en loginError)
+    try {
+      const postBody = JSON.stringify({ action:'login', args:['DIAGNOSTICO_AUTOMATICO','NO_OP'] });
+      const r = await fetch(url, {
+        method:'POST', mode:'cors',
+        headers: { 'Content-Type':'application/json','Accept':'application/json' },
+        body: postBody
+      });
+      if (r.ok) {
+        const j = await r.json().catch(()=>({}));
+        if (typeof j === 'object' && 'ok' in j) {
+          // CORS funciona! El backend respondió JSON. Login funcionará
+          toast('✅ Conexión establecida con Google Apps Script (CORS OK). Puedes iniciar sesión.', 'success', 4500);
+          return;
+        }
+      }
+    } catch(_errAuto){
+      // Falló el POST automático: mostramos el diagnóstico DETALLADO DIRECTAMENTE EN LA TARJETA ROJA
+      // (mandamos al usuario al diagnóstico completo con solo dar clic)
+      const lines = [];
+      lines.push('🚨 <b style="font-size:14px">PRUEBA AUTOMÁTICA: El botón Iniciar Sesión NO FUNCIONARÁ a menos que arregles esto:</b>');
+      lines.push('🔍 La URL de CONFIG.js detectada es:');
+      lines.push('<code style="display:block;background:#f1f5f9;padding:8px 10px;border-radius:8px;margin:4px 0 6px 0;font-family:ui-monospace,monospace;font-size:12px;word-break:break-all">'+esc(url)+'</code>');
+      lines.push('🎯 <b>El error más probable: la implementación seleccionada NO tiene marcada la opción "Cualquiera"</b> en Apps Script → Gestionar Implementaciones.');
+      lines.push('📝 Pasos a hacer YA:');
+      lines.push('1️⃣ Abre Apps Script → menú <b>Implementar ▼ → Gestionar implementaciones</b>.');
+      lines.push('2️⃣ Haz clic en la VERSIÓN ACTIVA DE ARRIBA (no las archivadas).');
+      lines.push('3️⃣ Pulsa ✏️ Editar. Verifica:');
+      lines.push('   · <b>Ejecutar como</b>: <b>Yo (tu cuenta Gmail)</b>');
+      lines.push('   · <b>Usuarios con acceso</b>: <b>CUALQUIERA</b> (Anyone). ❌ NO "Cualquiera con cuenta Google".');
+      lines.push('4️⃣ Pulsa <b>Implementar</b> (AZUL). Espera a que guarde.');
+      lines.push('5️⃣ Copia la URL NUEVA del botón Copiar (no la archivada).');
+      lines.push('6️⃣ Abre CONFIG.js en GitHub → ✏️ Editar → borra TODO y pega:');
+      lines.push('<code style="display:block;background:#0f172a;color:#a5f3fc;padding:8px 10px;border-radius:8px;margin:4px 0;font-family:ui-monospace,monospace;font-size:12px;word-break:break-all">window.APP_CONFIG = { APPS_SCRIPT_URL: \'PEGA-AQUI-LA-NUEVA-URL\' };</code>');
+      lines.push('7️⃣ Commit changes en GitHub. Espera 1 minuto → Actions ✅ verde.');
+      lines.push('8️⃣ <b>Cierra ESTA pestaña COMPLETAMENTE</b>, abre una nueva, pega tu URL de GitHub Pages AÑADIENDO al final: <code>?v=POST-AUTO-'+Date.now()+'</code>, pulsa Enter.');
+      lines.push('🟢 Para ver el diagnóstico paso a paso interactivo, pulsa el botón <b style="color:#b91c1c">🩺 Diagnosticar conexión</b> debajo del login.');
+
+      if (errDiv) {
+        errDiv.style.display = 'block';
+        errDiv.style.whiteSpace = 'normal';
+        errDiv.innerHTML = lines.join('<br>');
+      }
+    }
+  } catch(e){}
 });
