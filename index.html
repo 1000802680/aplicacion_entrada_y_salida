@@ -547,28 +547,53 @@
 <!-- ============================================================= -->
 <div id="qrModalHost"></div>
 
-  <script src="CONFIG.js?v=20260803C"></script>
-  <script src="app.js?v=20260803C"></script>
+  <script src="CONFIG.js?v=V2-20260803D"></script>
+  <script src="app.js?v=V2-20260803D"></script>
 <script>
 (function(){
-  // 🔧 ------------ ULTIMATE CACHE BUSTER: verifica que CONFIG.js CARGÓ LA URL NUEVA ------------
-  function muestraBannerInstrucciones(mensajeHtml){
-    var b = document.createElement('div');
-    b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999999;background:linear-gradient(135deg,#b91c1c,#ef4444);color:white;font-family:Inter,Arial,sans-serif;padding:18px 22px;font-size:14px;line-height:1.7;box-shadow:0 20px 40px rgba(0,0,0,.4);border-bottom:4px solid #7f1d1d';
-    b.innerHTML = mensajeHtml;
-    document.body.appendChild(b);
-  }
   try {
     var cfg = (window.APP_CONFIG && window.APP_CONFIG.APPS_SCRIPT_URL) ? window.APP_CONFIG.APPS_SCRIPT_URL : '';
+    var banner = document.createElement('div');
+    var fondo, borde, color;
+    var nivel;
+
     if (!cfg) {
-      // CONFIG.js NO SE CARGÓ
-      muestraBannerInstrucciones('<b style="font-size:18px">🚨 CONFIG.js NO SE CARGÓ (caché vieja de GitHub Pages)</b><br>Solución en 10 segundos:<br>1. Cierra ESTA pestaña completamente (no solo refresques).<br>2. Abre una PESTAÑA NUEVA del navegador.<br>3. Pega tu URL GitHub Pages y AÑÁDELE al final esto (lo que está en negritas): <b style="background:#7f1d1d;padding:2px 8px;border-radius:6px">?v=NUEVO-'+Date.now()+'</b><br>4. Pulsa Enter. La app ahora cargará el CONFIG.js NUEVO.');
-      return;
+      nivel = 'ERROR';
+      fondo = 'linear-gradient(135deg,#b91c1c,#ef4444)'; borde = '#7f1d1d'; color='white';
+    } else {
+      // Detectar si la URL que CARGÓ es la BUENA (la nueva con AKfycbzcTA2JdmFowDnO6rDSQshDDwO4faJlUTSwniS0S_zxRBI4Vvheq697zTMAYlf3ASD6)
+      var esBuena = /AKfycbzcTA2JdmFowDnO6rDSQshDDwO4faJlUTSwniS0S_zxRBI4Vvheq697zTMAYlf3ASD6/.test(cfg);
+      var esVieja = /AKfycbxdfadm8o8PVWB2uHyz7GUehtVBe0e08ggy1NUsgcVJR5MLWP19zZn10FWD_gin20Jn7g/.test(cfg);
+      if (esBuena) {
+        nivel = 'OK';
+        fondo = 'linear-gradient(135deg,#047857,#10b981)'; borde = '#065f46'; color = 'white';
+      } else if (esVieja) {
+        nivel = 'URL VIEJA (caché)';
+        fondo = 'linear-gradient(135deg,#b45309,#f59e0b)'; borde = '#78350f'; color = 'white';
+      } else {
+        nivel = 'URL DESCONOCIDA — COMPRUEBA QUE SEA LA CORRECTA';
+        fondo = 'linear-gradient(135deg,#7c2d12,#ea580c)'; borde = '#431407'; color = 'white';
+      }
     }
-    // Detectar URL VIEJA (la de antes: AKfycbxdfadm...)
-    if (cfg.indexOf('AKfycbxdfadm8o8PVWB2uHyz7GUehtVBe0e08ggy1NUsgcVJR5MLWP19zZn10FWD_gin20Jn7g') >= 0) {
-      muestraBannerInstrucciones('<b style="font-size:18px">🚨 CONFIG.js TIENE LA URL VIEJA (caché de GitHub Pages)</b><br>Tu navegador está usando el archivo de hace 10 minutos. Borramos caché así:<br>1. Pulsa <b>F12</b> (abrir DevTools) → pestaña Application/Application Storage → Storage → "Clear site data".<br>2. Luego pulsa <b>Ctrl + Shift + Suprimir</b> → selecciona "Caché de imágenes y archivos" → borrar los últimos 10 minutos.<br>3. Cierra la pestaña, abre una nueva y accede de nuevo.');
-    }
+
+    banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999999;background:'+fondo+';color:'+color+';font-family:Inter,Arial,sans-serif;padding:16px 20px 18px 20px;font-size:13.5px;line-height:1.75;box-shadow:0 22px 44px rgba(0,0,0,.45);border-bottom:5px solid '+borde+';word-break:break-word';
+    var htmlUrl = cfg
+      ? '<div style="margin-top:6px;padding:10px 12px;border-radius:10px;background:rgba(0,0,0,.25);font-family:ui-monospace,Consolas,monospace;font-size:12px;letter-spacing:.2px">'+cfg+'</div>'
+      : '<div style="margin-top:6px;padding:10px 12px;border-radius:10px;background:rgba(0,0,0,.25);font-family:ui-monospace,Consolas,monospace;font-size:12px;font-style:italic">⚠️ (CONFIG.js NO se cargó. Tu navegador tiene caché vieja de GitHub Pages.)</div>';
+
+    banner.innerHTML =
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">' +
+        '<div style="flex:1"><b style="font-size:17px">� ESTADO URL ACTIVA CONFIG.js ['+nivel+']</b><br>' +
+        '<small style="opacity:.92">Ésta es la URL QUE TU NAVEGADOR REALMENTE está usando (no lo que crees que subiste a GitHub). Si no coincide, es caché.</small>' +
+        htmlUrl +
+        (cfg && nivel !== 'OK'
+          ? '<div style="margin-top:8px;padding:10px 12px;border-radius:10px;background:rgba(0,0,0,.22);font-size:12.5px"><b>💡 SOLUCIÓN:</b> cierra <u>todas</u> las pestañas abiertas de <code>github.io</code> → abre una PESTAÑA NUEVA → pega tu URL GitHub AÑADIENDO al final: <code style="background:rgba(255,255,255,.18);padding:2px 6px;border-radius:6px">?v=R-'+Date.now()+'</code> → pulsa Enter.</div>'
+          : '') +
+        '</div>' +
+        '<button onclick="this.parentElement.parentElement.remove()" style="flex-shrink:0;padding:6px 10px;border-radius:8px;border:0;background:rgba(255,255,255,.18);color:white;font-weight:700;cursor:pointer">Cerrar ✕</button>' +
+      '</div>';
+
+    document.body.appendChild(banner);
   } catch(e){}
 })();
 </script>
