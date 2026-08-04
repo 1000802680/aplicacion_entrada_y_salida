@@ -4,7 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Control de Asistencia QR</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <link rel="stylesheet" href="styles.css?v=20260803C">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -544,8 +547,31 @@
 <!-- ============================================================= -->
 <div id="qrModalHost"></div>
 
-  <script src="CONFIG.js"></script>
-  <script src="app.js"></script>
+  <script src="CONFIG.js?v=20260803C"></script>
+  <script src="app.js?v=20260803C"></script>
+<script>
+(function(){
+  // 🔧 ------------ ULTIMATE CACHE BUSTER: verifica que CONFIG.js CARGÓ LA URL NUEVA ------------
+  function muestraBannerInstrucciones(mensajeHtml){
+    var b = document.createElement('div');
+    b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999999;background:linear-gradient(135deg,#b91c1c,#ef4444);color:white;font-family:Inter,Arial,sans-serif;padding:18px 22px;font-size:14px;line-height:1.7;box-shadow:0 20px 40px rgba(0,0,0,.4);border-bottom:4px solid #7f1d1d';
+    b.innerHTML = mensajeHtml;
+    document.body.appendChild(b);
+  }
+  try {
+    var cfg = (window.APP_CONFIG && window.APP_CONFIG.APPS_SCRIPT_URL) ? window.APP_CONFIG.APPS_SCRIPT_URL : '';
+    if (!cfg) {
+      // CONFIG.js NO SE CARGÓ
+      muestraBannerInstrucciones('<b style="font-size:18px">🚨 CONFIG.js NO SE CARGÓ (caché vieja de GitHub Pages)</b><br>Solución en 10 segundos:<br>1. Cierra ESTA pestaña completamente (no solo refresques).<br>2. Abre una PESTAÑA NUEVA del navegador.<br>3. Pega tu URL GitHub Pages y AÑÁDELE al final esto (lo que está en negritas): <b style="background:#7f1d1d;padding:2px 8px;border-radius:6px">?v=NUEVO-'+Date.now()+'</b><br>4. Pulsa Enter. La app ahora cargará el CONFIG.js NUEVO.');
+      return;
+    }
+    // Detectar URL VIEJA (la de antes: AKfycbxdfadm...)
+    if (cfg.indexOf('AKfycbxdfadm8o8PVWB2uHyz7GUehtVBe0e08ggy1NUsgcVJR5MLWP19zZn10FWD_gin20Jn7g') >= 0) {
+      muestraBannerInstrucciones('<b style="font-size:18px">🚨 CONFIG.js TIENE LA URL VIEJA (caché de GitHub Pages)</b><br>Tu navegador está usando el archivo de hace 10 minutos. Borramos caché así:<br>1. Pulsa <b>F12</b> (abrir DevTools) → pestaña Application/Application Storage → Storage → "Clear site data".<br>2. Luego pulsa <b>Ctrl + Shift + Suprimir</b> → selecciona "Caché de imágenes y archivos" → borrar los últimos 10 minutos.<br>3. Cierra la pestaña, abre una nueva y accede de nuevo.');
+    }
+  } catch(e){}
+})();
+</script>
 </body>
 </html>
 
